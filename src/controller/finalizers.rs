@@ -108,9 +108,6 @@ mod tests {
 
     #[test]
     fn test_finalizer_name() {
-        assert_eq!(
-            STELLAR_NODE_FINALIZER,
-            "stellarnode.stellar.org/finalizer"
-        );
+        assert_eq!(STELLAR_NODE_FINALIZER, "stellarnode.stellar.org/finalizer");
     }
 }

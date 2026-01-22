@@ -5,13 +5,11 @@
 
 use std::collections::BTreeMap;
 
-use k8s_openapi::api::apps::v1::{
-    Deployment, DeploymentSpec, StatefulSet, StatefulSetSpec,
-};
+use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec, StatefulSet, StatefulSetSpec};
 use k8s_openapi::api::core::v1::{
-    ConfigMap, Container, ContainerPort, EnvVar, PersistentVolumeClaim,
-    PersistentVolumeClaimSpec, PodSpec, PodTemplateSpec, ResourceRequirements as K8sResources,
-    Service, ServicePort, ServiceSpec, Volume, VolumeMount, VolumeResourceRequirements,
+    ConfigMap, Container, ContainerPort, EnvVar, PersistentVolumeClaim, PersistentVolumeClaimSpec,
+    PodSpec, PodTemplateSpec, ResourceRequirements as K8sResources, Service, ServicePort,
+    ServiceSpec, Volume, VolumeMount, VolumeResourceRequirements,
 };
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, ObjectMeta, OwnerReference};
@@ -25,7 +23,10 @@ use crate::error::{Error, Result};
 /// Get the standard labels for a StellarNode's resources
 fn standard_labels(node: &StellarNode) -> BTreeMap<String, String> {
     let mut labels = BTreeMap::new();
-    labels.insert("app.kubernetes.io/name".to_string(), "stellar-node".to_string());
+    labels.insert(
+        "app.kubernetes.io/name".to_string(),
+        "stellar-node".to_string(),
+    );
     labels.insert("app.kubernetes.io/instance".to_string(), node.name_any());
     labels.insert(
         "app.kubernetes.io/component".to_string(),
@@ -35,7 +36,10 @@ fn standard_labels(node: &StellarNode) -> BTreeMap<String, String> {
         "app.kubernetes.io/managed-by".to_string(),
         "stellar-operator".to_string(),
     );
-    labels.insert("stellar.org/node-type".to_string(), node.spec.node_type.to_string());
+    labels.insert(
+        "stellar.org/node-type".to_string(),
+        node.spec.node_type.to_string(),
+    );
     labels
 }
 
@@ -88,7 +92,10 @@ fn build_pvc(node: &StellarNode) -> PersistentVolumeClaim {
     let name = resource_name(node, "data");
 
     let mut requests = BTreeMap::new();
-    requests.insert("storage".to_string(), Quantity(node.spec.storage.size.clone()));
+    requests.insert(
+        "storage".to_string(),
+        Quantity(node.spec.storage.size.clone()),
+    );
 
     // Merge custom annotations from storage config with existing annotations
     let annotations = node.spec.storage.annotations.clone().unwrap_or_default();
@@ -178,13 +185,19 @@ fn build_config_map(node: &StellarNode) -> ConfigMap {
         }
         NodeType::Horizon => {
             if let Some(config) = &node.spec.horizon_config {
-                data.insert("STELLAR_CORE_URL".to_string(), config.stellar_core_url.clone());
+                data.insert(
+                    "STELLAR_CORE_URL".to_string(),
+                    config.stellar_core_url.clone(),
+                );
                 data.insert("INGEST".to_string(), config.enable_ingest.to_string());
             }
         }
         NodeType::SorobanRpc => {
             if let Some(config) = &node.spec.soroban_config {
-                data.insert("STELLAR_CORE_URL".to_string(), config.stellar_core_url.clone());
+                data.insert(
+                    "STELLAR_CORE_URL".to_string(),
+                    config.stellar_core_url.clone(),
+                );
                 if let Some(captive_config) = &config.captive_core_config {
                     data.insert("captive-core.cfg".to_string(), captive_config.clone());
                 }
@@ -235,8 +248,12 @@ pub async fn ensure_deployment(client: &Client, node: &StellarNode) -> Result<()
     let deployment = build_deployment(node);
 
     let patch = Patch::Apply(&deployment);
-    api.patch(&name, &PatchParams::apply("stellar-operator").force(), &patch)
-        .await?;
+    api.patch(
+        &name,
+        &PatchParams::apply("stellar-operator").force(),
+        &patch,
+    )
+    .await?;
 
     Ok(())
 }
@@ -245,7 +262,11 @@ fn build_deployment(node: &StellarNode) -> Deployment {
     let labels = standard_labels(node);
     let name = node.name_any();
 
-    let replicas = if node.spec.suspended { 0 } else { node.spec.replicas };
+    let replicas = if node.spec.suspended {
+        0
+    } else {
+        node.spec.replicas
+    };
 
     Deployment {
         metadata: ObjectMeta {
@@ -281,8 +302,12 @@ pub async fn ensure_statefulset(client: &Client, node: &StellarNode) -> Result<(
     let statefulset = build_statefulset(node);
 
     let patch = Patch::Apply(&statefulset);
-    api.patch(&name, &PatchParams::apply("stellar-operator").force(), &patch)
-        .await?;
+    api.patch(
+        &name,
+        &PatchParams::apply("stellar-operator").force(),
+        &patch,
+    )
+    .await?;
 
     Ok(())
 }
@@ -359,8 +384,12 @@ pub async fn ensure_service(client: &Client, node: &StellarNode) -> Result<()> {
     let service = build_service(node);
 
     let patch = Patch::Apply(&service);
-    api.patch(&name, &PatchParams::apply("stellar-operator").force(), &patch)
-        .await?;
+    api.patch(
+        &name,
+        &PatchParams::apply("stellar-operator").force(),
+        &patch,
+    )
+    .await?;
 
     Ok(())
 }

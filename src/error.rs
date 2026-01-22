@@ -51,10 +51,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 impl Error {
     /// Check if this error type should trigger a retry
     pub fn is_retriable(&self) -> bool {
-        matches!(
-            self,
-            Error::KubeError(_) | Error::FinalizerError(_)
-        )
+        matches!(self, Error::KubeError(_) | Error::FinalizerError(_))
     }
 
     /// Convert to a human-readable message for status updates

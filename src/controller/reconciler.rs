@@ -102,7 +102,6 @@ async fn reconcile(obj: Arc<StellarNode>, ctx: Arc<ControllerState>) -> Result<A
 }
 
 /// Apply/create/update the StellarNode resources
-/// Apply/create/update the StellarNode resources
 async fn apply_stellar_node(client: &Client, node: &StellarNode) -> Result<Action> {
     let namespace = node.namespace().unwrap_or_else(|| "default".to_string());
     let name = node.name_any();
@@ -116,71 +115,59 @@ async fn apply_stellar_node(client: &Client, node: &StellarNode) -> Result<Actio
         return Err(Error::ValidationError(e));
     }
 
-    // 1. Create/update the PersistentVolumeClaim (Always keep this)
+    // 1. Core infrastructure (PVC and ConfigMap) always managed by operator
     resources::ensure_pvc(client, node).await?;
-    info!("PVC ensured for {}/{}", namespace, name);
-
-    // 2. Create/update the ConfigMap (Always keep this)
     resources::ensure_config_map(client, node).await?;
-    info!("ConfigMap ensured for {}/{}", namespace, name);
 
-    // --- NEW: Maintenance Mode Logic ---
-    // This satisfies the criteria: "skip 'Apply' steps for the workload"
+    // 2. Maintenance Mode Check
+    // If active, we skip workload management (Step 3) and suspension checks.
+    // This allows a human to manually scale the node up or down as needed.
     if node.spec.maintenance_mode {
         info!(
-            "Node {}/{} is in Maintenance Mode. Skipping workload updates.",
+            "Node {}/{} in Maintenance Mode. Skipping workload updates.",
             namespace, name
         );
 
-        // We still ensure the Service exists as per criteria
         resources::ensure_service(client, node).await?;
 
-        // Update status so users know why it's not updating
         update_status(
             client,
             node,
             "Maintenance",
-            Some("Manual maintenance mode active"),
+            Some("Manual maintenance mode active; workload management paused"),
         )
         .await?;
 
-        // Return early to skip Step 3 (the workload)
         return Ok(Action::requeue(Duration::from_secs(60)));
     }
-    // --- End Maintenance Mode Logic ---
 
-    // Check if suspended (This is existing logic)
+    // 3. Normal Mode: Handle suspension
+    // This only runs if NOT in maintenance mode.
     if node.spec.suspended {
         info!("Node {}/{} is suspended, scaling to 0", namespace, name);
         update_status(client, node, "Suspended", Some("Node is suspended")).await?;
     }
 
-    // 3. Create/update the Deployment/StatefulSet based on node type
-    // This part is now SKIPPED if maintenance_mode is true because of the return above
+    // 4. Manage Workload (Deployment/StatefulSet)
     match node.spec.node_type {
         NodeType::Validator => {
             resources::ensure_statefulset(client, node).await?;
-            info!("StatefulSet ensured for validator {}/{}", namespace, name);
         }
         NodeType::Horizon | NodeType::SorobanRpc => {
             resources::ensure_deployment(client, node).await?;
-            info!("Deployment ensured for RPC node {}/{}", namespace, name);
         }
     }
 
-    // 4. Create/update the Service
+    // 5. Ensure Service and finalize status
     resources::ensure_service(client, node).await?;
-    info!("Service ensured for {}/{}", namespace, name);
 
-    // 5. Update status to Running
     let phase = if node.spec.suspended {
         "Suspended"
     } else {
         "Running"
     };
-    update_status(client, node, phase, Some("Resources created successfully")).await?;
+    update_status(client, node, phase, Some("Resources synchronized")).await?;
 
-    // Requeue after 30 seconds to check node health and sync status
     Ok(Action::requeue(Duration::from_secs(30)))
 }
 

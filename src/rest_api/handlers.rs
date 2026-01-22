@@ -13,7 +13,9 @@ use tracing::error;
 use crate::controller::ControllerState;
 use crate::crd::StellarNode;
 
-use super::dto::{ErrorResponse, HealthResponse, NodeDetailResponse, NodeListResponse, NodeSummary};
+use super::dto::{
+    ErrorResponse, HealthResponse, NodeDetailResponse, NodeListResponse, NodeSummary,
+};
 
 /// Health check endpoint
 pub async fn health() -> Json<HealthResponse> {
@@ -45,11 +47,7 @@ pub async fn list_nodes(
                         .map(|s| s.phase.clone())
                         .unwrap_or_else(|| "Unknown".to_string()),
                     replicas: n.spec.replicas,
-                    ready_replicas: n
-                        .status
-                        .as_ref()
-                        .map(|s| s.ready_replicas)
-                        .unwrap_or(0),
+                    ready_replicas: n.status.as_ref().map(|s| s.ready_replicas).unwrap_or(0),
                 })
                 .collect();
 

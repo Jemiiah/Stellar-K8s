@@ -8,8 +8,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::types::{
-    Condition, HorizonConfig, NodeType, ResourceRequirements, RetentionPolicy,
-    SorobanConfig, StellarNetwork, StorageConfig, ValidatorConfig,
+    Condition, HorizonConfig, NodeType, ResourceRequirements, RetentionPolicy, SorobanConfig,
+    StellarNetwork, StorageConfig, ValidatorConfig,
 };
 
 /// The StellarNode CRD represents a managed Stellar infrastructure node.
@@ -96,9 +96,13 @@ pub struct StellarNodeSpec {
     pub replicas: i32,
 
     /// Suspend the node (scale to 0 without deleting resources)
+    /// The operator still manages the resources, but keeps them inactive.
     #[serde(default)]
     pub suspended: bool,
 
+    /// When true, the operator will skip 'Apply' steps for the workload (Deployment/StatefulSet),
+    /// allowing for manual operations. PVCs and Services are still maintained.
+    /// This field takes precedence over 'suspended'.
     #[serde(default)]
     pub maintenance_mode: bool,
 }
