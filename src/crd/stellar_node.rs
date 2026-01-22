@@ -8,8 +8,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::types::{
-    Condition, ExternalDatabaseConfig, HorizonConfig, NodeType, ResourceRequirements,
-    RetentionPolicy, SorobanConfig, StellarNetwork, StorageConfig, ValidatorConfig,
+    AutoscalingConfig, Condition, ExternalDatabaseConfig, HorizonConfig, IngressConfig, NodeType,
+    ResourceRequirements, RetentionPolicy, SorobanConfig, StellarNetwork, StorageConfig,
+    ValidatorConfig,
 };
 
 /// The StellarNode CRD represents a managed Stellar infrastructure node.
@@ -104,6 +105,16 @@ pub struct StellarNodeSpec {
     /// and injected as environment variables into the container
     #[serde(skip_serializing_if = "Option::is_none")]
     pub database: Option<ExternalDatabaseConfig>,
+
+    /// Horizontal Pod Autoscaling configuration
+    /// Only applicable to Horizon and SorobanRpc nodes
+    /// Validators do not support autoscaling (always 1 replica)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub autoscaling: Option<AutoscalingConfig>,
+
+    /// Ingress configuration for HTTPS exposure via an ingress controller and cert-manager
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ingress: Option<IngressConfig>,
 }
 
 fn default_replicas() -> i32 {
@@ -129,15 +140,43 @@ impl StellarNodeSpec {
                 if self.replicas != 1 {
                     return Err("Validator nodes must have exactly 1 replica".to_string());
                 }
+                if self.autoscaling.is_some() {
+                    return Err("autoscaling is not supported for Validator nodes".to_string());
+                }
+                if self.ingress.is_some() {
+                    return Err("ingress is not supported for Validator nodes".to_string());
+                }
             }
             NodeType::Horizon => {
                 if self.horizon_config.is_none() {
                     return Err("horizonConfig is required for Horizon nodes".to_string());
                 }
+                if let Some(ref autoscaling) = self.autoscaling {
+                    if autoscaling.min_replicas < 1 {
+                        return Err("autoscaling.minReplicas must be at least 1".to_string());
+                    }
+                    if autoscaling.max_replicas < autoscaling.min_replicas {
+                        return Err("autoscaling.maxReplicas must be >= minReplicas".to_string());
+                    }
+                }
+                if let Some(ingress) = &self.ingress {
+                    validate_ingress(ingress)?;
+                }
             }
             NodeType::SorobanRpc => {
                 if self.soroban_config.is_none() {
                     return Err("sorobanConfig is required for SorobanRpc nodes".to_string());
+                }
+                if let Some(ref autoscaling) = self.autoscaling {
+                    if autoscaling.min_replicas < 1 {
+                        return Err("autoscaling.minReplicas must be at least 1".to_string());
+                    }
+                    if autoscaling.max_replicas < autoscaling.min_replicas {
+                        return Err("autoscaling.maxReplicas must be >= minReplicas".to_string());
+                    }
+                }
+                if let Some(ingress) = &self.ingress {
+                    validate_ingress(ingress)?;
                 }
             }
         }
@@ -157,6 +196,37 @@ impl StellarNodeSpec {
     pub fn should_delete_pvc(&self) -> bool {
         self.storage.retention_policy == RetentionPolicy::Delete
     }
+}
+
+fn validate_ingress(ingress: &IngressConfig) -> Result<(), String> {
+    if ingress.hosts.is_empty() {
+        return Err("ingress.hosts must not be empty".to_string());
+    }
+
+    for host in &ingress.hosts {
+        if host.host.trim().is_empty() {
+            return Err("ingress.hosts[].host must not be empty".to_string());
+        }
+        if host.paths.is_empty() {
+            return Err("ingress.hosts[].paths must not be empty".to_string());
+        }
+        for path in &host.paths {
+            if path.path.trim().is_empty() {
+                return Err("ingress.hosts[].paths[].path must not be empty".to_string());
+            }
+            if let Some(path_type) = &path.path_type {
+                let allowed = path_type == "Prefix" || path_type == "Exact";
+                if !allowed {
+                    return Err(
+                        "ingress.hosts[].paths[].pathType must be either Prefix or Exact"
+                            .to_string(),
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Status subresource for StellarNode
