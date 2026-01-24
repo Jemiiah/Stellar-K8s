@@ -34,7 +34,7 @@ jobs:
       image_tag: ${{ steps.version.outputs.image_tag }}
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       
@@ -53,7 +53,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin
@@ -91,10 +91,10 @@ jobs:
     needs: build
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       
@@ -114,7 +114,7 @@ jobs:
           sudo apt-get install -y k6
       
       - name: Setup kind cluster
-        uses: helm/kind-action@v1.10.0
+        uses: helm/kind-action@v1.13.0
         with:
           cluster_name: benchmark-cluster
           config: |
@@ -234,7 +234,7 @@ jobs:
           kubectl get events -n stellar-benchmark --sort-by='.lastTimestamp' > results/events.txt || true
       
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: benchmark-results-${{ needs.build.outputs.version }}
           path: results/
@@ -287,18 +287,18 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Download benchmark results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: benchmark-results-${{ needs.build.outputs.version }}
           path: results/
       
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       
@@ -333,7 +333,7 @@ jobs:
     
     steps:
       - name: Download benchmark results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: benchmark-results-${{ needs.build.outputs.version }}
           path: results/
@@ -386,7 +386,7 @@ jobs:
           echo -e "$COMMENT" > comment.md
       
       - name: Post comment
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-path: comment.md
