@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand};
 use k8s_openapi::api::coordination::v1::Lease;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::MicroTime;
 use kube::api::{Api, ObjectMeta, Patch, PatchParams, PostParams};
-use stellar_k8s::{controller, crd::StellarNode, Error};
+use stellar_k8s::{controller, crd::StellarNode, preflight, Error};
 use tracing::{debug, info, warn, Level};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
@@ -137,6 +137,9 @@ impl RunArgs {
         }
         Ok(())
     }
+    /// Run preflight checks and exit without starting the operator
+    #[arg(long, env = "PREFLIGHT_ONLY")]
+    preflight_only: bool,
 }
 
 #[derive(Parser, Debug)]
@@ -590,6 +593,17 @@ async fn run_operator(args: RunArgs) -> Result<(), Error> {
         .map_err(Error::KubeError)?;
 
     info!("Connected to Kubernetes cluster");
+
+    // Run preflight self-checks
+    let preflight_results = preflight::run_preflight_checks(&client, &args.namespace).await;
+    preflight::print_diagnostic_summary(&preflight_results);
+
+    if args.preflight_only {
+        info!("--preflight-only flag set; exiting after diagnostics.");
+        return preflight::evaluate_results(&preflight_results);
+    }
+
+    preflight::evaluate_results(&preflight_results)?;
 
     // If --scheduler flag is set, run the latency-aware scheduler instead
     if args.scheduler {
