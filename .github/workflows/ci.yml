@@ -37,7 +37,7 @@ jobs:
           operator:
             logLevel: verbose
           EOF
-          if helm lint charts/stellar-operator -f /tmp/bad-loglevel.yaml 2>&1 | grep -q "validation error"; then
+          if helm lint charts/stellar-operator -f /tmp/bad-loglevel.yaml 2>&1 | grep -q "meet the specifications"; then
             echo "Schema correctly rejected invalid logLevel"
           else
             echo "ERROR: Schema did not reject invalid logLevel" && exit 1
@@ -49,7 +49,7 @@ jobs:
           service:
             type: ExternalName
           EOF
-          if helm lint charts/stellar-operator -f /tmp/bad-service.yaml 2>&1 | grep -q "validation error"; then
+          if helm lint charts/stellar-operator -f /tmp/bad-service.yaml 2>&1 | grep -q "meet the specifications"; then
             echo "Schema correctly rejected invalid service type"
           else
             echo "ERROR: Schema did not reject invalid service type" && exit 1
@@ -61,7 +61,7 @@ jobs:
           image:
             pullPolicy: Whenever
           EOF
-          if helm lint charts/stellar-operator -f /tmp/bad-pullpolicy.yaml 2>&1 | grep -q "validation error"; then
+          if helm lint charts/stellar-operator -f /tmp/bad-pullpolicy.yaml 2>&1 | grep -q "meet the specifications"; then
             echo "Schema correctly rejected invalid pullPolicy"
           else
             echo "ERROR: Schema did not reject invalid pullPolicy" && exit 1
