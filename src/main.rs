@@ -333,8 +333,7 @@ async fn run_check_crd() -> Result<(), Error> {
         Ok(crd) => crd,
         Err(kube::Error::Api(e)) if e.code == 404 => {
             return Err(Error::ConfigError(format!(
-                "StellarNode CRD '{}' is not installed. Install with: kubectl apply -f config/crd/stellarnode-crd.yaml",
-                CRD_NAME
+                "StellarNode CRD '{CRD_NAME}' is not installed. Install with: kubectl apply -f config/crd/stellarnode-crd.yaml"
             )));
         }
         Err(e) => return Err(Error::KubeError(e)),
@@ -365,8 +364,8 @@ async fn run_check_crd() -> Result<(), Error> {
     }
 
     println!("CRD check passed");
-    println!("CRD: {}", CRD_NAME);
-    println!("Expected version: {}", EXPECTED_VERSION);
+    println!("CRD: {CRD_NAME}");
+    println!("Expected version: {EXPECTED_VERSION}");
     println!("Served versions: {}", installed_versions.join(", "));
     Ok(())
 }
